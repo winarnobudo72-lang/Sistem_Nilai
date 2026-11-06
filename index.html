@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS (XLSX) CDN untuk Ekspor Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Google Font Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -195,30 +197,49 @@
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     
                     <!-- Table Header Actions -->
-                    <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="p-5 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                         <div class="flex items-center gap-2">
                             <h2 class="text-base font-bold text-slate-800">Rekapitulasi Nilai Informatika</h2>
                             <span id="badge-count" class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-full">0 Data</span>
                         </div>
 
-                        <!-- Main Buttons -->
+                        <!-- Main Buttons Action Bar -->
                         <div class="flex flex-wrap items-center gap-2">
+                            <!-- Ekspor Excel -->
+                            <button onclick="exportToExcel()" 
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+                                title="Unduh File Excel (.xlsx)">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>Unduh Excel</span>
+                            </button>
+
+                            <!-- Unduh / Cetak PDF -->
+                            <button onclick="exportToPDF()" 
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+                                title="Cetak / Simpan Laporan ke PDF">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                                <span>Cetak / PDF</span>
+                            </button>
+
+                            <!-- Kirim Email -->
                             <button onclick="sendEmailReport()" 
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-all"
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
                                 title="Kirim Laporan ke Email Guru">
                                 <i data-lucide="send" class="w-4 h-4"></i>
                                 <span>Kirim Email</span>
                             </button>
 
+                            <!-- Salin Teks -->
                             <button onclick="copyReportToClipboard()" 
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-sm transition-all"
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
                                 title="Salin Teks Rekapitulasi">
                                 <i data-lucide="copy" class="w-4 h-4"></i>
                                 <span>Salin Teks</span>
                             </button>
 
+                            <!-- Hapus Semua -->
                             <button onclick="confirmClearAll()" 
-                                class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-semibold rounded-xl transition-all"
+                                class="px-2.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition-all"
                                 title="Hapus Semua Data">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
@@ -514,6 +535,182 @@
             document.getElementById('stat-avg').textContent = avg;
             document.getElementById('stat-lulus').textContent = tuntas;
             document.getElementById('stat-remed').textContent = remed;
+        }
+
+        // ==========================================
+        // EKSPOR KE EXCEL (.XLSX) FUNCTIONALITY
+        // ==========================================
+        function exportToExcel() {
+            if (studentsData.length === 0) {
+                showToast("Tidak ada data untuk diekspor ke Excel!", "error");
+                return;
+            }
+
+            const exportData = studentsData.map((item, idx) => ({
+                'No': idx + 1,
+                'Nama Siswa': item.nama,
+                'Kelas': item.kelas,
+                'Mata Pelajaran': item.mapel || SUBJECT_NAME,
+                'Nilai': item.nilai,
+                'Status (KKTP 80)': item.nilai >= KKTP ? 'TUNTAS' : 'REMEDIAL',
+                'Catatan': item.catatan || '-'
+            }));
+
+            // Create Worksheet & Workbook
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            
+            // Adjust Column Widths
+            worksheet['!cols'] = [
+                { wch: 6 },  // No
+                { wch: 28 }, // Nama
+                { wch: 10 }, // Kelas
+                { wch: 15 }, // Mapel
+                { wch: 8 },  // Nilai
+                { wch: 15 }, // Status
+                { wch: 35 }  // Catatan
+            ];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Nilai Informatika");
+
+            // Format date for filename
+            const dateStr = new Date().toISOString().split('T')[0];
+            const fileName = `Nilai_Informatika_SMPN2_Ngadirejo_${dateStr}.xlsx`;
+
+            // Trigger Download
+            XLSX.writeFile(workbook, fileName);
+            showToast("Berhasil mengunduh file Excel!", "success");
+        }
+
+        // ==========================================
+        // CETAK / EKSPOR KE PDF FUNCTIONALITY
+        // ==========================================
+        function exportToPDF() {
+            if (studentsData.length === 0) {
+                showToast("Tidak ada data untuk dicetak/diekspor ke PDF!", "error");
+                return;
+            }
+
+            const filterKelas = document.getElementById('filter-kelas').value;
+            const filteredData = studentsData.filter(item => filterKelas === 'ALL' || item.kelas === filterKelas);
+
+            if (filteredData.length === 0) {
+                showToast("Tidak ada data sesuai filter kelas saat ini!", "error");
+                return;
+            }
+
+            const total = filteredData.length;
+            const tuntas = filteredData.filter(i => i.nilai >= KKTP).length;
+            const remed = total - tuntas;
+            const avg = total > 0 ? (filteredData.reduce((acc, curr) => acc + curr.nilai, 0) / total).toFixed(1) : 0;
+            const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Create print window
+            const printWin = window.open('', '_blank');
+
+            const rowsHtml = filteredData.map((item, index) => `
+                <tr>
+                    <td style="text-align: center;">${index + 1}</td>
+                    <td><strong>${escapeHtml(item.nama)}</strong></td>
+                    <td style="text-align: center;">${escapeHtml(item.kelas)}</td>
+                    <td style="text-align: center;"><strong>${item.nilai}</strong></td>
+                    <td style="text-align: center; color: ${item.nilai >= KKTP ? '#166534' : '#991b1b'}; font-weight: bold;">
+                        ${item.nilai >= KKTP ? 'TUNTAS' : 'REMEDIAL'}
+                    </td>
+                    <td>${item.catatan ? escapeHtml(item.catatan) : '-'}</td>
+                </tr>
+            `).join('');
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Rekap Nilai Informatika - ${SCHOOL_NAME}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 30px; color: #1e293b; line-height: 1.4; }
+                        .header { text-align: center; border-bottom: 3px double #0f172a; padding-bottom: 12px; margin-bottom: 20px; }
+                        .header h2 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
+                        .header h3 { margin: 4px 0 0 0; font-size: 16px; font-weight: 600; color: #334155; }
+                        .header p { margin: 4px 0 0 0; font-size: 12px; color: #64748b; }
+                        .info-grid { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                        .stats-summary { display: flex; gap: 15px; margin-bottom: 20px; }
+                        .stat-box { flex: 1; padding: 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; }
+                        .stat-box .title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; }
+                        .stat-box .val { font-size: 18px; font-weight: bold; margin-top: 2px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px 10px; }
+                        th { background-color: #f1f5f9; color: #0f172a; text-transform: uppercase; font-size: 11px; }
+                        tr:nth-child(even) { background-color: #f8fafc; }
+                        .footer-sign { margin-top: 40px; display: flex; justify-content: flex-end; }
+                        .sign-box { text-align: center; width: 220px; font-size: 12px; }
+                        .sign-space { height: 60px; }
+                        @media print {
+                            body { margin: 15mm 10mm; }
+                            button { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>${SCHOOL_NAME}</h2>
+                        <h3>REKAPITULASI NILAI MATA PELAJARAN INFORMATIKA</h3>
+                        <p>KKTP (Kriteria Ketercapaian Tujuan Pembelajaran): <strong>${KKTP}</strong></p>
+                    </div>
+
+                    <div class="info-grid">
+                        <div>
+                            <div><strong>Guru Pengampu:</strong> ${TEACHER_NAME}</div>
+                            <div><strong>Mata Pelajaran:</strong> ${SUBJECT_NAME}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div><strong>Filter Kelas:</strong> ${filterKelas === 'ALL' ? 'Semua Kelas (VIII & IX)' : 'Kelas ' + filterKelas}</div>
+                            <div><strong>Tanggal Cetak:</strong> ${dateStr}</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-summary">
+                        <div class="stat-box"><div class="title">Total Siswa</div><div class="val" style="color:#0f172a;">${total}</div></div>
+                        <div class="stat-box"><div class="title">Rata-Rata Nilai</div><div class="val" style="color:#4338ca;">${avg}</div></div>
+                        <div class="stat-box"><div class="title">Tuntas (>=80)</div><div class="val" style="color:#166534;">${tuntas}</div></div>
+                        <div class="stat-box"><div class="title">Remedial (<80)</div><div class="val" style="color:#991b1b;">${remed}</div></div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">No</th>
+                                <th style="width: 30%;">Nama Siswa</th>
+                                <th style="width: 12%;">Kelas</th>
+                                <th style="width: 10%;">Nilai</th>
+                                <th style="width: 15%;">Status</th>
+                                <th style="width: 28%;">Catatan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+
+                    <div class="footer-sign">
+                        <div class="sign-box">
+                            <p>Ngadirejo, ${dateStr}</p>
+                            <p>Guru Mata Pelajaran</p>
+                            <div class="sign-space"></div>
+                            <p><strong><u>${TEACHER_NAME}</u></strong></p>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            printWin.document.write(htmlContent);
+            printWin.document.close();
         }
 
         // Generate Text Report Format
