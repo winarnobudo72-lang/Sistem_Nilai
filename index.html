@@ -221,12 +221,12 @@
                                 <span>Cetak / PDF</span>
                             </button>
 
-                            <!-- Kirim Email dengan Excel -->
-                            <button onclick="sendEmailWithExcel()" 
+                            <!-- Kirim Email -->
+                            <button onclick="sendEmailReport()" 
                                 class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
-                                title="Unduh Excel & Buka Draft Email">
+                                title="Kirim Laporan ke Email Guru">
                                 <i data-lucide="send" class="w-4 h-4"></i>
-                                <span>Kirim Excel via Email</span>
+                                <span>Kirim Email</span>
                             </button>
 
                             <!-- Salin Teks -->
@@ -312,7 +312,7 @@
                 <div class="p-4 bg-indigo-50/70 border border-indigo-200/70 rounded-2xl flex items-start gap-3">
                     <i data-lucide="info" class="w-5 h-5 text-indigo-600 shrink-0 mt-0.5"></i>
                     <div class="text-xs text-indigo-950 leading-relaxed">
-                        <strong class="font-semibold text-indigo-900">Alur Pengiriman Excel ke Email:</strong> Mengklik tombol <strong class="text-indigo-700">"Kirim Excel via Email"</strong> akan mengunduh file `.xlsx` ke komputer/HP Anda secara otomatis dan membuka aplikasi email yang ditujukan ke <strong>winarnobudo72@gmail.com</strong>. Anda cukup mengklik ikon <strong class="text-slate-800">Lampirkan File (Attach File / 📎)</strong> pada email dan memilih file Excel yang baru diunduh.
+                        <strong class="font-semibold text-indigo-900">Petunjuk Pengiriman Email:</strong> Mengklik tombol <strong class="text-emerald-700">"Kirim Email"</strong> akan membuka aplikasi email default Anda (seperti Gmail) secara otomatis dengan tujuan <strong>winarnobudo72@gmail.com</strong> lengkap dengan format rekapitulasi data nilai siswa SMP NEGERI 2 NGADIREJO.
                     </div>
                 </div>
 
@@ -723,62 +723,117 @@
             const avg = (studentsData.reduce((acc, curr) => acc + curr.nilai, 0) / total).toFixed(1);
             const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-            let body = `Yth. Guru Mata Pelajaran Informatika (${TEACHER_NAME}),\n\n`;
-            body += `Terlampir file rekapitulasi nilai Informatika siswa ${SCHOOL_NAME}.\n\n`;
-            body += `[CATATAN UNTUK PENGIRIM: File Excel (.xlsx) telah terunduh otomatis di folder Downloads perangkat Anda. Silakan klik tombol 'Lampirkan File' / ikon klip (📎) pada email ini untuk melampirkan file Excel tersebut.]\n\n`;
-            body += `=========================================\n`;
-            body += `RINGKASAN REKAPITULASI NILAI INFORMATIKA\n`;
-            body += `=========================================\n`;
-            body += `Sekolah       : ${SCHOOL_NAME}\n`;
+            let body = `REKAPITULASI NILAI INFORMATIKA - ${SCHOOL_NAME}\n`;
             body += `Guru Pengampu : ${TEACHER_NAME}\n`;
             body += `KKTP          : ${KKTP}\n`;
-            body += `Tanggal Rekap : ${dateStr}\n\n`;
+            body += `Tanggal Rekap : ${dateStr}\n`;
+            body += `=========================================\n\n`;
             body += `STATISTIK PEMBELAJARAN:\n`;
             body += `- Total Siswa      : ${total}\n`;
             body += `- Rata-Rata Nilai  : ${avg}\n`;
             body += `- Tuntas (>=${KKTP})    : ${tuntas} siswa\n`;
             body += `- Remedial (<${KKTP})  : ${remed} siswa\n\n`;
             body += `=========================================\n`;
-            body += `DETAIL RINGKAS NILAI SISWA:\n\n`;
+            body += `DETAIL NILAI SISWA:\n\n`;
 
             studentsData.forEach((item, idx) => {
                 const status = item.nilai >= KKTP ? "TUNTAS" : "REMEDIAL";
-                body += `${idx + 1}. ${item.nama} | Kelas: ${item.kelas} | Nilai: ${item.nilai} (${status})\n`;
+                body += `${idx + 1}. ${item.nama} | Kelas: ${item.kelas}\n`;
+                body += `   Nilai: ${item.nilai} (${status})\n`;
+                if (item.catatan) {
+                    body += `   Catatan: ${item.catatan}\n`;
+                }
+                body += `-----------------------------------------\n`;
             });
 
-            body += `\nFile spreadsheet lengkap (.xlsx) terlampir.\n`;
-            body += `Dikirim via Aplikasi Rekap Nilai Informatika.`;
+            body += `\nDikirim secara otomatis melalui Aplikasi Pencatatan Nilai Informatika.`;
             return body;
         }
 
-        // Combined Action: Export Excel & Open Email Client
-        function sendEmailWithExcel() {
-            if (studentsData.length === 0) {
+        // Send Email Handler
+        function sendEmailReport() {
+            const reportText = generateReportText();
+            if (!reportText) {
                 showToast("Tidak ada data nilai untuk dikirim!", "error");
                 return;
             }
 
-            // Step 1: Trigger Excel Download
-            exportToExcel();
-
-            // Step 2: Open Email Client with instructions
-            const reportText = generateReportText();
-            const subject = encodeURIComponent(`[REKAP EXCEL] Nilai Informatika - ${SCHOOL_NAME} - ${TEACHER_NAME}`);
+            const subject = encodeURIComponent(`Rekap Nilai Informatika - ${SCHOOL_NAME} - ${TEACHER_NAME}`);
             const body = encodeURIComponent(reportText);
 
             const mailtoUrl = `mailto:${DESTINATION_EMAIL}?subject=${subject}&body=${body}`;
-
-            setTimeout(() => {
-                window.location.href = mailtoUrl;
-                showToast("File Excel terunduh! Silakan lampirkan (attach) pada email yang terbuka.", "success");
-            }, 800);
-        }
-
-        // Legacy/Direct Send Email Handler
-        function sendEmailReport() {
-            sendEmailWithExcel();
+            window.location.href = mailtoUrl;
+            showToast("Membuka aplikasi email...", "info");
         }
 
         // Copy Text Report to Clipboard Handler
         function copyReportToClipboard() {
-<!-- ... existing code -->
+            const reportText = generateReportText();
+            if (!reportText) {
+                showToast("Tidak ada data untuk disalin!", "error");
+                return;
+            }
+
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = reportText;
+            dummy.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast("Rekapitulasi berhasil disalin ke clipboard!", "success");
+            } catch (err) {
+                showToast("Gagal menyalin teks ke clipboard.", "error");
+            }
+            
+            document.body.removeChild(dummy);
+        }
+
+        // UI Toast Helper
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let bgColors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-rose-600 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+
+            let icons = {
+                success: 'check-circle-2',
+                error: 'alert-circle',
+                info: 'info'
+            };
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${bgColors[type]} text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i data-lucide="${icons[type]}" class="w-5 h-5 shrink-0"></i> <span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Utility: HTML Escaper
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function (m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+    </script>
+</body>
+</html>
